@@ -2,83 +2,41 @@ package main
 
 
 import (
-    http "net/http"
-    "fmt"
-    // "log"
-    "encoding/json"
-    "github.com/go-playground/validator/v10"
+
+	"log"
+	"fmt"
 	"github.com/gin-gonic/gin"
+
+	"latihan1/handler"
+	"latihan1/book"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 func main(){
-	router := gin.Default()
 
-	fmt.Println(http.StatusOK)
-	router.GET("/", rootHandler)
-	router.GET("/hello", helloHandler)
-	router.GET("/books/:id", booksHandler)
-	router.GET("/query", queryHandler)
-	router.POST("/books", postHandler)
-
-	router.Run()
-}
-
-func rootHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"name": "Mufti Robbani",
-		"desc": "Kalibata",
-	})
-}
-
-func helloHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"title": "Hello World",
-	})
-}
-
-
-func booksHandler(c *gin.Context) {
-	id := c.Param("id")
-	c.JSON(http.StatusOK, gin.H{
-		"title": "Books",
-		"id" : id,
-	})
-}
-
-func queryHandler(c *gin.Context) {
-	id := c.Query("id")
-	c.JSON(http.StatusOK, gin.H{
-		"title": "Query",
-		"id" : id,
-	})
-}
-
-type BookInput struct {
-	Title string 	  `json:"title" binding:"required"`
-	Price json.Number `json:"price" binding:"required,number"`
-}
-
-func postHandler(c *gin.Context) {
-	var bookInput BookInput
-
-	err := c.ShouldBindJSON(&bookInput)
+	// refer https://github.com/go-sql-driver/mysql#dsn-data-source-name for details
+	dsn := "root:@tcp(127.0.0.1:3306)/latihan1?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-
-		errorMessages := []string{}
-		for _, e := range err.(validator.ValidationErrors){
-			errorMessage := fmt.Sprintf("Error on field %s, condition: %s", e.Field(), e.ActualTag())
-			errorMessages = append(errorMessages, errorMessage)
-		}
-
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": errorMessages,
-		})
-		return
+		log.Fatal("Db connection error")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"title": bookInput.Title,
-		"id" : bookInput.Price,
-	})
+	db.AutoMigrate(&book.Book{})
+
+	fmt.Println("Database connection berhasil")
+
+	router := gin.Default()
+
+	v1 := router.Group("/v1")
+
+	v1.GET("/", handler.RootHandler)
+	v1.GET("/hello", handler.HelloHandler)
+	v1.GET("/books/:id", handler.BooksHandler)
+	v1.GET("/query", handler.QueryHandler)
+	v1.POST("/books", handler.PostHandler)
+
+	router.Run()
 }
